@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chiller FaultGuard v13.0 — Air-Gapped Cooling Tower Digital Twin</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  <link rel="stylesheet" href="/styles.css?v=13.0.12" />
+  <script src="/charts_svg.js?v=13.0.12" defer></script>
+  <script src="/app.js?v=13.0.12" defer></script>
+</head>
+<body>
+  <!-- ==================== SINGLE CLEAN TOP BAR (100% OFFLINE · ZERO CDN) ==================== -->
+  <header class="stage-header">
+    <div class="header-left">
+      <div class="brand-mark"></div>
+      <span class="brand-name">Chiller FaultGuard</span>
+    </div>
+
+    <nav class="stage-tabs" role="tablist">
+      <button class="tab-btn active" data-tab="overview" role="tab">1. Live Replay</button>
+      <button class="tab-btn" data-tab="trends" role="tab">2. AI &amp; Validation</button>
+      <button class="tab-btn" data-tab="quantify" role="tab">3. Energy &amp; Impact</button>
+      <button class="tab-btn" data-tab="derisk" role="tab">4. Alert Triage (I–VI)</button>
+      <button class="tab-btn" data-tab="hardware" role="tab">5. Field Camera</button>
+    </nav>
+
+    <div class="header-right">
+      <div class="seg-group" id="scenario-buttons" title="Documented LBNL Oct-01 Held-Out Test Cases">
+        <button class="seg-btn active" data-scenario="normal">Normal</button>
+        <button class="seg-btn" data-scenario="fouling_low">0.95 UA</button>
+        <button class="seg-btn" data-scenario="fouling_medium">0.80 UA</button>
+        <button class="seg-btn" data-scenario="fouling_high">0.65 UA</button>
+      </div>
+      <div class="play-group">
+        <button id="btn-play" class="act-btn act-primary">▶ Play</button>
+        <button id="btn-jump-alert" class="act-btn act-accent" title="Process intermediate rows to next persistent AI alert (5/5m)">⏭ Next Alert</button>
+        <button id="btn-step15" class="act-btn" title="Advance 15 min">+15m</button>
+        <button id="btn-reset" class="act-btn" title="Reset to Normal">↺</button>
+      </div>
+      <span class="badge badge-ro">READ-ONLY</span>
+      <span id="badge-clock" class="badge badge-clk" title="Published LBNL Oct-01 Test Timestamp">--:--</span>
+      <button id="btn-rca" class="act-btn act-rca" title="Open FaultGuard AI Chat (Hotkey: A)">💬 AI Chat</button>
+      <button id="btn-story" class="act-btn act-story" title="Toggle 6-Beat Stage Demo Script (Hotkey: S)">🎬 Story</button>
+      <button id="btn-theme" class="icon-btn" title="Light / Dark Theme (Hotkey: T)">◐</button>
+    </div>
+  </header>
+
+  <!-- ==================== COLLAPSIBLE 6-BEAT GUIDED STAGE STORY BAR (HOTKEY: S) ==================== -->
+  <section id="story-bar" class="story-bar hidden" aria-label="Guided 6-Beat SEMI Expo Stage Demo">
+    <span class="story-lbl">STAGE DEMO:</span>
+    <div class="story-beats" id="story-beats">
+      <button class="story-btn" data-beat="1" title="Normal 1.00 UA at 12:15 (Calm ISA-101 baseline)">① Normal Baseline</button>
+      <button class="story-btn" data-beat="2" title="0.65 UA at 10:40 — Quan HGB 0.911 flags while Fan 93.9% Rule stays 0/15m">② AI Ahead of Rule (10:40)</button>
+      <button class="story-btn" data-beat="3" title="Tab 2 — Score trend, 14-Ch power, Oct–Dec benchmark & 6/6 sensitivity">③ AI Evidence &amp; 6/6</button>
+      <button class="story-btn" data-beat="4" title="Tab 3 — EVN TOU Break-Even PM Optimizer + Live-Alert Auto ΔkW* + 5M1E">④ EVN TOU &amp; Break-Even</button>
+      <button class="story-btn" data-beat="5" title="Tab 4 — Inject Gate 4 Training OOD (Flow 750 GPM -> ABSTAIN & Causal DAG Block)">⑤ Live OOD Interlock</button>
+      <button class="story-btn" data-beat="6" title="Tab 4 — Causal Root-Cause DAG + 6-Step Triage ready for Confirmed CMMS Brief">⑥ Causal DAG &amp; Brief</button>
+    </div>
+    <span class="story-keys">Keys: 1–5 Tabs · Space Play · A RCA · S Story · T Theme</span>
+  </section>
+
+  <!-- ==================== AUTOMATIC ABSTENTION / SAFE-FAIL BANNER ==================== -->
+  <section id="verification-banner" class="verify-banner hidden" role="alert">
+    <div class="verify-left">
+      <span class="verify-icon">⚠</span>
+      <div>
+        <div class="verify-title">ABSTENTION — QUALITY OR OPERATING GATE ACTIVE (DIAGNOSTICS SUSPENDED)</div>
+        <div id="verify-reason" class="verify-detail">Step V–VI maintenance confirmation locked until clean eligible inputs resume.</div>
+      </div>
+    </div>
+    <div class="banner-actions">
+      <button id="btn-jump-eligible" class="btn-banner-go">Skip to Next Eligible →</button>
+      <button id="btn-clear-fault-banner" class="btn-banner-clear">✓ Restore Clean Inputs</button>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 1: LIVE PUBLISHED LBNL REPLAY ==================== -->
+  <main id="tab-overview" class="tab-pane active">
+    <div class="t1-grid">
+      <section class="card pid-card">
+        <div class="card-head">
+          <div class="title-with-tag">
+            <h2 title="Published LBNL Oct-01 Held-Out 24h Fixture (ISA-101 · N+1 CUB Cell)">CUB Plant P&amp;ID</h2>
+            <span id="pid-source-tag" class="tag-subtle">Oct-01 · 24h</span>
+          </div>
+          <div class="head-pills">
+            <span id="overall-status-pill" class="pill pill-ok">✓ NO ALERT</span>
+          </div>
+        </div>
+        <div class="pid-stage-wrap">
+          <div id="pid-container" class="pid-stage">Loading P&amp;ID…</div>
+          <div id="pid-tooltip" class="pid-tooltip hidden" role="tooltip"></div>
+        </div>
+        <!-- Parity-Safe 24h Oct-01 Timeline Scrubber -->
+        <div class="timeline-wrap" id="timeline-wrap" title="Click any 10-min bin to seek exact 0.00e+00 replay">
+          <div class="tl-head">
+            <span class="tl-title">24h Oct-01 Timeline</span>
+            <div class="tl-legend">
+              <span><i class="tl-dot tl-off"></i>Off/Gate</span>
+              <span><i class="tl-dot tl-eligible"></i>Eligible</span>
+              <span><i class="tl-dot tl-ai_only"></i>AI-Only</span>
+              <span><i class="tl-dot tl-both"></i>AI + Rule</span>
+            </div>
+          </div>
+          <div class="tl-track-outer">
+            <div id="tl-bins" class="tl-bins" role="slider" aria-label="24-hour Oct-01 Replay Timeline"></div>
+            <div id="tl-cursor" class="tl-cursor" style="left:50%"></div>
+          </div>
+          <div class="tl-ticks"><span>00:00</span><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span><span>23:59</span></div>
+        </div>
+      </section>
+
+      <aside class="t1-side">
+        <!-- A. Independent High-Fan Reference Rule Radial Gauge -->
+        <section class="card gauge-card">
+          <div class="card-head">
+            <h3>High-Fan Reference Rule</h3>
+            <span id="phys-state-pill" class="pill pill-ok">NO RULE ALERT</span>
+          </div>
+          <div id="chart-gauge" class="gauge-host"></div>
+          <div class="gauge-metrics">
+            <div><span>CT-1 Fan</span><strong id="kpi-fan-meas">-- %</strong></div>
+            <div><span>Rule Gate</span><strong>&gt; 98.0 %</strong></div>
+            <div><span>Persistence</span><strong id="rule-dwell-text">0 / 15m</strong></div>
+          </div>
+          <div class="dwell-track"><div id="rule-dwell-bar" class="dwell-fill" style="width:0%"></div></div>
+        </section>
+
+        <!-- B. Quan Frozen HistGradientBoostingClassifier Card -->
+        <section class="card ai-card" title="Quan frozen HistGradientBoostingClassifier · uncalibrated score · binary fouling suspicion only (no severity claim)">
+          <div class="card-head">
+            <div class="title-with-tag">
+              <h3>Quan Frozen HGB Score</h3>
+              <span id="ai-meta-tag" class="tag-subtle" title="Local inference latency · uncalibrated score">--ms</span>
+            </div>
+            <span id="fusion-agreement-pill" class="pill pill-ok">SEPARATE OUTPUTS</span>
+          </div>
+          <div class="ai-hero">
+            <span id="ai-pred-label" class="ai-state-txt">NO ALERT</span>
+            <span id="ai-conf-val" class="ai-conf-num">0.000</span>
+          </div>
+          <div class="score-bar-wrap">
+            <div class="score-scale">
+              <span>0.00</span>
+              <span class="thresh-lbl">Threshold 0.70</span>
+              <span>1.00</span>
+            </div>
+            <div class="score-track">
+              <div id="ai-score-fill" class="score-fill" style="width:0%"></div>
+              <div class="score-thresh-line" style="left:70%"></div>
+            </div>
+          </div>
+          <div class="ai-persist-row">
+            <span>AI Persistence (&gt;0.70): <strong id="ai-dwell-text">0 / 5 min</strong></span>
+            <span class="tag-subtle" title="Binary fouling suspicion only — no severity claim">Binary</span>
+          </div>
+          <div class="dwell-track"><div id="ai-dwell-bar" class="dwell-fill" style="width:0%"></div></div>
+        </section>
+
+        <!-- C. Live Logged 14-Channel Telemetry Signals (2x3 Compact Stage Grid) -->
+        <section class="card hero-card">
+          <div class="card-head">
+            <h3>Logged LBNL Signals (14-Ch)</h3>
+            <span class="tag-subtle" id="row-counter-tag">Row 1 / 1440</span>
+          </div>
+          <div class="hero-6">
+            <div class="hero-tile">
+              <span class="hero-lbl">14-Ch Plant kW</span>
+              <strong id="kpi-plant-kw" class="hero-num">-- kW</strong>
+            </div>
+            <div class="hero-tile">
+              <span class="hero-lbl">Signed ΔkW*</span>
+              <strong id="kpi-delta-kw" class="hero-num">-- kW</strong>
+            </div>
+            <div class="hero-tile">
+              <span class="hero-lbl">CT-1 Range ΔT</span>
+              <strong id="kpi-range-c" class="hero-num">-- °C</strong>
+            </div>
+            <div class="hero-tile">
+              <span class="hero-lbl">CT-1 Flow</span>
+              <strong id="kpi-flow-gpm" class="hero-num">-- GPM</strong>
+            </div>
+            <div class="hero-tile">
+              <span class="hero-lbl">Logged Load*</span>
+              <strong id="kpi-load-kw" class="hero-num">-- kW</strong>
+            </div>
+            <div class="hero-tile">
+              <span class="hero-lbl">Active Staging</span>
+              <strong id="kpi-staging" class="hero-num">--</strong>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- Clean Operational Action Strip leading into Tab 4 Triage -->
+    <section id="advisory-strip" class="action-bar bar-normal">
+      <div class="action-msg">
+        <span id="advisory-equip" class="chip-equip">CT-1</span>
+        <strong id="advisory-title">Loading published LBNL replay…</strong>
+        <span id="advisory-ack-badge" class="chip-ack hidden">✓ LOGGED</span>
+      </div>
+      <div class="verdict-row">
+        <button id="btn-open-triage" class="v-btn v-go">Open Alert Triage (Steps I–VI) →</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== TAB 2: AI VALIDATION & LOCAL SENSITIVITY ==================== -->
+  <main id="tab-trends" class="tab-pane">
+    <div class="t2-top">
+      <section class="card chart-card" title="Uncalibrated Quan HGB score (>0.70, 5m) vs High-Fan Reference Rule (>98%, 15m)">
+        <div class="card-head">
+          <h3>Quan HGB Score vs. Rule Lead</h3>
+          <span id="score-lead-pill" class="tag-subtle">Gate 0.70 · 5m vs 15m</span>
+        </div>
+        <div id="chart-score" class="svg-chart-fill"></div>
+      </section>
+
+      <section class="card chart-card" title="Switch between Excess ΔkW* (isolates fouling penalty from chiller staging spikes) and Total 14-Ch kW">
+        <div class="card-head">
+          <h3 id="power-card-title">14-Channel Plant Power (kW)</h3>
+          <div class="dag-toggle" id="power-view-toggle" role="group" aria-label="Power Chart View">
+            <button class="dt-btn active" data-pview="delta" title="Signed excess power ΔkW* = Active − Matched Normal around 0 kW">Excess ΔkW*</button>
+            <button class="dt-btn" data-pview="total" title="Full 14-channel total kW vs matched normal baseline">Total kW</button>
+          </div>
+        </div>
+        <div id="chart-power" class="svg-chart-fill"></div>
+      </section>
+    </div>
+
+    <div class="t2-bottom">
+      <!-- Real Held-Out Oct-Dec Chronological Benchmark (True 0.0 -> 1.0 Scale) -->
+      <section class="card" title="Oct–Dec held-out test · 73,932 eligible rows · True 0.00–1.00 scale">
+        <div class="card-head">
+          <h3>Oct–Dec Benchmark</h3>
+          <span class="pill pill-ok" title="97.8% Precision · Only 0.096 false-alarm episodes per normal hour">97.8% Precision</span>
+        </div>
+        <div id="chart-benchmark" class="svg-chart-sm"></div>
+      </section>
+
+      <!-- Real 1-at-a-Time Local Feature Sensitivity on Quan's Frozen HGB (Symmetric Diverging Zero-Axis) -->
+      <section class="card" title="1-at-a-time local perturbation vs Jan–Jun train mean (symmetric around 0)">
+        <div class="card-head">
+          <h3>Local Sensitivity (Δscore)</h3>
+          <span id="xai-ood-badge" class="pill pill-ok">IN TRAINING BOUNDS</span>
+        </div>
+        <div id="xai-feature-list" class="xai-visual"></div>
+      </section>
+
+      <!-- Honest Detection Scope & Per-Case Recall (Highlights Active Scenario) -->
+      <section class="card" title="Per-severity recall on Oct–Dec held-out test · highlights active scenario">
+        <div class="card-head">
+          <h3>Per-Level Recall (AI vs. Rule)</h3>
+          <span id="recall-active-tag" class="tag-subtle">Oct–Dec Test</span>
+        </div>
+        <div id="limits-grid" class="rc-tiles"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== TAB 3: ENERGY EVIDENCE & ILLUSTRATIVE EARLIER-PM ==================== -->
+  <main id="tab-quantify" class="tab-pane">
+    <section class="site-bar">
+      <div class="site-left">
+        <span class="site-lbl">EXCESS BASIS</span>
+        <div class="seg-group" id="excess-kw-buttons">
+          <button class="seg-btn active" data-mode="live" title="Automatically projects from live 15-min median ΔkW* only when an AI or Rule alert is active (0 kWh on Normal)">⚡ Live Alert (Auto)</button>
+          <button class="seg-btn" data-kw="3" title="Fixed illustrative baseline template (3 kW × 24h × 92d = 6,624 kWh)">3 kW (Baseline)</button>
+          <button class="seg-btn" data-kw="5">5 kW</button>
+          <button class="seg-btn" data-kw="10">10 kW</button>
+        </div>
+        <div class="bar-sep"></div>
+        <span class="site-lbl">EARLIER PM</span>
+        <div class="seg-group" id="clean-day-buttons">
+          <button class="seg-btn active" data-day="28">D28</button>
+          <button class="seg-btn" data-day="45">D45</button>
+          <button class="seg-btn" data-day="60">D60</button>
+        </div>
+        <div class="bar-sep"></div>
+        <span class="site-lbl">CALENDAR PM</span>
+        <div class="seg-group" id="cal-day-buttons">
+          <button class="seg-btn" data-cal="90">D90</button>
+          <button class="seg-btn active" data-cal="120">D120</button>
+          <button class="seg-btn" data-cal="180">D180</button>
+        </div>
+        <div class="bar-sep"></div>
+        <span class="site-lbl">RESTORE</span>
+        <div class="seg-group" id="restore-buttons">
+          <button class="seg-btn active" data-rest="1">100%</button>
+          <button class="seg-btn" data-rest="0.75">75%</button>
+        </div>
+        <button id="btn-reset-illus" class="act-btn" title="Reset to default 3 kW · D28 vs D120 · 100% baseline (6,624 kWh)">↺ Reset</button>
+      </div>
+      <span class="tag-subtle" title="Illustrative scenario projection · EVN QĐ 2892/BCT 22kV TOU (1,926 ₫/kWh ex-VAT) · Verified savings require Site Pilot">22kV TOU · 1,926 ₫/kWh · Pilot Scope</span>
+    </section>
+
+    <div class="t3-charts">
+      <!-- LEFT: Transparent Illustrative Earlier-PM Calculator -->
+      <section class="card chart-card">
+        <div class="card-head">
+          <h3 id="cf-chart-title">Earlier PM (D28) vs. Calendar PM (D120)</h3>
+          <span id="cf-days-pill" class="pill pill-ok">92d Earlier · 6,624 kWh</span>
+        </div>
+        <div id="chart-counterfactual" class="svg-chart-fill"></div>
+      </section>
+
+      <!-- RIGHT: Live 14-Channel Equipment Power Breakdown + Oct-Dec Conditional Matched Table -->
+      <section class="card chart-card">
+        <div class="card-head">
+          <h3>14-Channel Equipment Power (kW &amp; ΔkW*)</h3>
+          <span id="breakdown-total-pill" class="pill pill-ok" title="In-scope 14-channel total kW and signed excess ΔkW* vs matched Normal">Total: -- kW · +0.0 kW*</span>
+        </div>
+        <div id="chart-breakdown" class="svg-chart-mid"></div>
+        <div class="cond-table-wrap">
+          <div class="cond-head-row" title="~348 matched active hrs per case · Weather &amp; CHW mapping pending site pilot verification">
+            <span class="cond-head">Oct–Dec Conditional Signed ΔkWh</span>
+            <span class="tag-subtle">Conditional · Site Pilot Req.</span>
+          </div>
+          <table class="cond-table" id="cond-elec-table">
+            <thead>
+              <tr><th>Severity Case</th><th>Matched Hrs</th><th>Signed ΔkWh</th><th>Pos / Neg (kWh)</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bottom 3-Pillar Quantitative Summary (Official Nov-2026 VN Tariff, LBNL Event Time & 2024 VN Grid Scope 2) -->
+    <div class="t3-pillars">
+      <section id="pillar-money" class="pillar-card p-money" title="EVN QĐ 2892/BCT 22kV TOU (1,926 ₫/kWh ex-VAT) · Illustrative Break-Even ROI · Verified savings require Site Pilot">
+        <div class="pillar-top">
+          <span class="pillar-tag">MONEY · EVN TOU ROI</span>
+          <div class="pm-cost-mini" id="pm-cost-buttons" title="Assumed CT-1 Cleaning PM Cost (VND)">
+            <span class="pm-mini-lbl">PM:</span>
+            <button class="pm-mini-btn" data-pm="4000000">4M</button>
+            <button class="pm-mini-btn active" data-pm="8000000">8M</button>
+            <button class="pm-mini-btn" data-pm="15000000">15M ₫</button>
+          </div>
+        </div>
+        <div id="p-money-kpis" class="pillar-kpis"></div>
+        <div id="p-money-note" class="pillar-note hidden">--</div>
+      </section>
+      <section id="pillar-time" class="pillar-card p-time" title="LBNL Oct–Dec operating windows · 5m AI vs 15m Rule dwell · N+1 PM avoids unplanned stop">
+        <div class="pillar-top"><span class="pillar-tag">TIME · EARLY DETECTION</span><span class="pillar-m">Oct–Dec Held-Out</span></div>
+        <div id="p-time-kpis" class="pillar-kpis"></div>
+        <div id="p-time-note" class="pillar-note hidden">--</div>
+      </section>
+      <section id="pillar-image" class="pillar-card p-image" title="VN 2024 Scope 2 EF 0.6187 (CV 11232) · ASHRAE Flow×ΔT water estimate (verified = null; WTP meter req.)">
+        <div class="pillar-top"><span class="pillar-tag">ESG · CARBON &amp; WATER</span><span class="pillar-m">Scope 2 · ASHRAE</span></div>
+        <div id="p-image-kpis" class="pillar-kpis"></div>
+        <div id="p-image-note" class="pillar-note hidden">--</div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== TAB 4: LIVE SUPERVISOR ALERT TRIAGE WORKBENCH (I -> VI) ==================== -->
+  <main id="tab-derisk" class="tab-pane">
+    <div class="triage-grid">
+      <div class="triage-steps-col">
+        <!-- STEP I: AUTO-VALIDATED 6 NATIVE INPUTS + SYNTHETIC STRESS TESTS -->
+        <section id="card-step-1" class="triage-card tc-ok">
+          <div class="tc-head" title="All 6 Native LBNL HGB Model Inputs, Domain Bounds &amp; Synthetic Stress Tests">
+            <div class="tc-title"><span class="step-badge sb-ok" id="sb-1">I</span><strong>Validate 6 Native Inputs</strong></div>
+            <span id="step1-status" class="pill pill-ok">6/6 NATIVE INPUTS OK</span>
+          </div>
+          <div id="step1-metrics" class="kv-strip kv-strip-6"></div>
+          <div class="glitch-row" id="fault-buttons">
+            <span class="glitch-lbl">STRESS TEST:</span>
+            <button class="g-btn active" data-fault="none">✓ Clean Replay</button>
+            <button class="g-btn g-warn" data-fault="missing_nan">Missing / NaN</button>
+            <button class="g-btn g-warn" data-fault="out_of_range" title="Gate 1: Physical range check (CT_FAN_SPD_1=400%)">Phys. Range</button>
+            <button class="g-btn g-warn" data-fault="domain_ood" title="Gate 4: Padded Jan–Jun training envelope OOD (CT_FLOW_1=750 GPM -> ood_flag=True)">Train OOD</button>
+            <button class="g-btn g-warn" data-fault="flatline_60m">Flatline 60m</button>
+          </div>
+        </section>
+
+        <!-- STEP II: NON-OVERLAPPING CUB PLANT CONTEXT & OPERATING GATE -->
+        <section id="card-step-2" class="triage-card">
+          <div class="tc-head" title="Plant-level staging, inlet temperature, CHW guard &amp; 14-channel power context">
+            <div class="tc-title"><span class="step-badge sb-blue">II</span><strong>Plant Context &amp; Operating Gate</strong></div>
+            <span id="step2-status" class="pill pill-ok">ELIGIBLE ACTIVE</span>
+          </div>
+          <div id="step2-metrics" class="kv-strip"></div>
+        </section>
+
+        <!-- STEP III: INTERACTIVE CAUSAL ROOT-CAUSE GRAPH (DAG) & COMPETING CAUSES -->
+        <section id="card-step-3" class="triage-card">
+          <div class="tc-head" title="Hover any node for evidence · Click any node to query Air-Gapped RCA Agent">
+            <div class="tc-title"><span class="step-badge sb-blue">III</span><strong>Causal Root-Cause</strong></div>
+            <div class="tc-head-right">
+              <div class="dag-toggle" id="dag-view-toggle" role="group" aria-label="Step III View Mode">
+                <button class="dt-btn active" data-view="dag" title="Interactive 8-Node Causal Root-Cause DAG">☍ Causal DAG</button>
+                <button class="dt-btn" data-view="cards" title="4-Hypothesis Competing Causes Cards">4 Cards</button>
+              </div>
+              <span id="step3-status" class="pill pill-ok">CHECKING</span>
+            </div>
+          </div>
+          <div id="step3-dag-host" class="dag-host"></div>
+          <div id="step3-hypotheses" class="hyp-strip hidden"></div>
+        </section>
+
+        <!-- STEP IV: INTERACTIVE FIELD INSPECTION CHECKLIST + FIELD CAMERA SYNC -->
+        <section id="card-step-4" class="triage-card">
+          <div class="tc-head" title="Manual field verification or sync from Tab 5 Field Camera Feed (Advisory Only)">
+            <div class="tc-title"><span class="step-badge sb-purple">IV</span><strong>Field Inspection</strong></div>
+            <div class="tc-head-right">
+              <button id="btn-step4-ai" class="act-btn act-accent btn-step4-ai" title="Sync Step IV checklist from Tab 5 Field Camera scenario (Advisory Only — Human Step V still required)">📷 Sync Field Cam</button>
+              <span id="step4-status" class="tag-subtle">0 / 4 Logged</span>
+            </div>
+          </div>
+          <div id="step4-checklist" class="field-grid"></div>
+        </section>
+      </div>
+
+      <!-- RIGHT COLUMN: STEP V VERDICT (INTERLOCKED) + STEP VI INSPECTION BRIEF + AUDIT TRAIL -->
+      <div class="triage-action-col">
+        <section class="card decision-card">
+          <div class="tc-head" title="Local session advisory record — zero automated PLC write-back">
+            <div class="tc-title"><span class="step-badge sb-blue">V</span><strong>Supervisor Verdict</strong></div>
+            <span id="step5-badge" class="tag-subtle">AWAITING REVIEW</span>
+          </div>
+          <div id="interlock-box" class="interlock-box hidden">
+            🔒 <strong>INTERLOCK:</strong> Step I returned <strong>ABSTAIN</strong> — Confirmed verdict locked.
+          </div>
+          <p id="step5-summary" class="decision-summary">Review Steps I–IV, then log verdict.</p>
+          <div class="review-inputs">
+            <input id="input-engineer" class="rev-inp rev-eng" type="text" maxlength="60" value="Facilities Supervisor (Shift A)" aria-label="Supervisor Name" placeholder="Supervisor name" />
+            <input id="input-note" class="rev-inp rev-note" type="text" maxlength="200" aria-label="Optional review note" placeholder="Optional shift note (local only)..." />
+          </div>
+          <div class="verdict-grid">
+            <button id="btn-v-confirmed" class="vc-btn vc-ok" data-verdict="CONFIRMED">
+              <strong>✓ Confirmed Fouling</strong>
+              <span>Unlock Step VI Draft</span>
+            </button>
+            <button id="btn-v-fa" class="vc-btn vc-fa" data-verdict="FALSE_ALARM">
+              <strong>✕ False Alarm</strong>
+              <span>No PM · Log Feedback</span>
+            </button>
+            <button id="btn-v-inc" class="vc-btn vc-inc" data-verdict="INCONCLUSIVE">
+              <strong>? Inconclusive</strong>
+              <span>Hold · 24h Watch</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="step6-card" class="card wo-card wo-locked">
+          <div class="tc-head">
+            <div class="tc-title"><span class="step-badge sb-ok">VI</span><strong>Action Brief (CMMS Draft)</strong></div>
+            <span id="step6-badge" class="tag-subtle">LOCKED UNTIL STEP V</span>
+          </div>
+          <div id="step6-body" class="wo-body">
+            <div class="wo-placeholder">Locked until Step V <strong>Confirmed</strong> verdict (Read-only · zero PLC write).</div>
+          </div>
+        </section>
+
+        <section class="card audit-card">
+          <div class="card-head">
+            <h3>Incident Audit Trail</h3>
+          </div>
+          <div class="feed-scroll">
+            <ul id="event-log-list" class="feed-list"></ul>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== TAB 5: FIELD CAMERA EXTRACTION ==================== -->
+  <main id="tab-hardware" class="tab-pane">
+    <section class="hw-bar">
+      <div class="hw-bar-left">
+        <span class="site-lbl">BENCH SCENARIO</span>
+        <div class="seg-group" id="hw-preset-buttons" title="Field Camera Scenario Presets">
+          <button class="seg-btn" data-preset="all_healthy">All Healthy</button>
+          <button class="seg-btn active" data-preset="fill_fouling_065">Fill Fouling</button>
+          <button class="seg-btn" data-preset="clogged_nozzle_low_flow">Nozzle &amp; Flow</button>
+          <button class="seg-btn" data-preset="fan_belt_slip">Fan Belt Slip</button>
+          <button class="seg-btn" data-preset="high_wetbulb_confounder">High Wet-Bulb</button>
+          <button class="seg-btn" data-preset="turbid_basin_low_coc">Turbid CoC</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="hw-grid">
+      <section class="card hw-vision-card">
+        <div class="card-head">
+          <div class="title-with-tag">
+            <h3 title="Field Camera Feed Extraction across CT-1 Inspection Zones">Field Camera Inspector</h3>
+          </div>
+          <div class="hw-head-right">
+            <div class="dag-toggle" id="hw-vision-modes" role="group" aria-label="Field Camera Channel">
+              <button class="dt-btn active" data-mode="fill_strainer">Fill (H1)</button>
+              <button class="dt-btn" data-mode="spray_flow">Nozzles (H2)</button>
+              <button class="dt-btn" data-mode="basin_water">Basin (IV-4)</button>
+            </div>
+            <span id="hw-vision-verdict-pill" class="pill pill-ok">LOADING</span>
+          </div>
+        </div>
+
+        <div class="hw-stage-wrap">
+          <img id="hw-vision-img" class="hw-vision-img" alt="Field Camera Feed" />
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== PURE LLM CHAT ASSISTANT DRAWER (HOTKEY: A) ==================== -->
+  <aside id="rca-drawer" class="rca-drawer hidden" role="complementary" aria-label="FaultGuard AI Chat">
+    <div class="rca-head">
+      <div class="rca-head-left">
+        <div class="rca-title-row">
+          <span class="rca-dot" id="rca-status-dot"></span>
+          <strong>FaultGuard AI</strong>
+        </div>
+        <button type="button" id="btn-rca-key-toggle" class="rca-llm-pill" title="Click to set or update Gemini API Key (saved to .env)">🔑 Set Gemini Key</button>
+      </div>
+      <div class="rca-head-actions">
+        <button type="button" id="btn-clear-rca" class="icon-btn" title="Clear chat history" aria-label="Clear chat">↺</button>
+        <button type="button" id="btn-close-rca" class="icon-btn" aria-label="Close chat" title="Close (Esc)">✕</button>
+      </div>
+    </div>
+
+    <form id="rca-key-bar" class="rca-key-bar hidden" autocomplete="off">
+      <input id="rca-key-input" class="rca-inp rca-key-inp" type="password" maxlength="260" placeholder="Paste GEMINI_API_KEY (AIza...) and click Save" aria-label="Gemini API Key" />
+      <button type="submit" class="rca-key-save-btn">Save</button>
+    </form>
+
+    <div id="rca-chat-log" class="rca-chat-log" role="log" aria-live="polite"></div>
+
+    <form id="rca-form" class="rca-input-bar" autocomplete="off">
+      <input id="rca-input" class="rca-inp" type="text" maxlength="1000" placeholder="Ask anything about the live plant... (Enter to send)" aria-label="Ask FaultGuard AI" />
+      <button id="btn-rca-send" type="submit" class="rca-send-btn">Send ↵</button>
+    </form>
+  </aside>
+</body>
+</html>

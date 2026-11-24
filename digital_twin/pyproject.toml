@@ -1,0 +1,16 @@
+[project]
+name = "chiller-faultguard-digital-twin-v13"
+version = "13.0.0"
+description = "Chiller FaultGuard v13.0 — Read-Only Cooling Tower Digital Twin (Quan Frozen HGB, Causal DAG, EVN TOU, Gemini AI Chat & Field Camera)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.165.0",
+    "uvicorn==0.54.0",
+    "pydantic==2.14.4",
+    "numpy==2.5.5",
+    "scipy==1.18.1",
+    "scikit-learn==1.9.1",
+    "joblib==1.6.0",
+    "threadpoolctl==3.8.0",
+    "opencv-python-headless==5.1.0.95",
+]
